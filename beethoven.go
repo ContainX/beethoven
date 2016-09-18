@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/spf13/cobra"
+	"fmt"
 	"github.com/ContainX/beethoven/config"
 	"github.com/ContainX/depcon/pkg/logger"
-	"fmt"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -23,25 +23,24 @@ Beethoven (Mesos/Marathon HTTP based Proxy)
 var (
 	// Added via ldflags
 	version = "-"
-	built = ""
+	built   = ""
 
 	// Root command is the parent to all other commands
 	rootCmd = &cobra.Command{
-		Use:   "beethoven [config-file | remote-server-url]",
-		Short: "Mesos/Marathon HTTP based Proxy",
-		Long: fmt.Sprintf(Usage, version, built),
+		Use:     "beethoven [config-file | remote-server-url]",
+		Short:   "Mesos/Marathon HTTP based Proxy",
+		Long:    fmt.Sprintf(Usage, version, built),
 		Example: Example,
 	}
 
 	serveCmd = &cobra.Command{
-		Use: "serve",
-		Short: "Start serving traffic",
-		Run: serve,
+		Use:     "serve",
+		Short:   "Start serving traffic",
+		Run:     serve,
 		Example: Example,
 	}
 
 	log = logger.GetLogger("beethoven")
-
 )
 
 func serve(cmd *cobra.Command, args []string) {
