@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/ContainX/beethoven/config"
+	"github.com/ContainX/beethoven/proxy"
 	"github.com/ContainX/depcon/pkg/logger"
 	"github.com/spf13/cobra"
 )
@@ -21,25 +22,25 @@ Beethoven (Mesos/Marathon HTTP based Proxy)
 )
 
 var (
-	// Added via ldflags
+	/* LDFlags */
 	version = "-"
 	built   = ""
 
-	// Root command is the parent to all other commands
+	/* CLI commands */
+
 	rootCmd = &cobra.Command{
 		Use:     "beethoven [config-file | remote-server-url]",
 		Short:   "Mesos/Marathon HTTP based Proxy",
 		Long:    fmt.Sprintf(Usage, version, built),
 		Example: Example,
 	}
-
 	serveCmd = &cobra.Command{
 		Use:     "serve",
 		Short:   "Start serving traffic",
 		Run:     serve,
 		Example: Example,
 	}
-
+	// Logger
 	log = logger.GetLogger("beethoven")
 )
 
@@ -48,7 +49,10 @@ func serve(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-	fmt.Println(config)
+	config.Version = version
+
+	proxy.New(config).Serve()
+
 }
 
 func main() {
