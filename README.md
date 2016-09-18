@@ -1,4 +1,4 @@
-# Beethoven
+# B E E T H O V E N
 
 Is a Mesos/Marathon stream listener which manages an NGINX proxy instance within Docker.  It allows you to extend a the docker image and add an `nginx.conf.tmpl` which will be dynamically parsed into the final configuration file based on state changes within the cluster.
 
