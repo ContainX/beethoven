@@ -2,13 +2,13 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	cc "github.com/ContainX/go-springcloud/config"
 	"github.com/ContainX/go-utils/encoding"
+	"github.com/kelseyhightower/envconfig"
 	_ "github.com/kelseyhightower/envconfig"
 	"github.com/spf13/cobra"
 	"os"
-	"github.com/kelseyhightower/envconfig"
-	"fmt"
 )
 
 const (
@@ -36,12 +36,6 @@ type Config struct {
 
 	// Port to listen to HTTP requests.  Default 7777
 	Port int `json:"port"`
-}
-
-// PreConfigOpts is a simple container driven by environment variables.  This config
-// helps determine which method to load the Config struct via when flags are not
-// specified
-type PreConfigOpts struct {
 }
 
 var (
