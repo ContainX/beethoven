@@ -36,6 +36,12 @@ type Config struct {
 
 	// Port to listen to HTTP requests.  Default 7777
 	Port int `json:"port"`
+
+	// Location to nginx.conf template
+	Template string `json:"template"`
+
+	/* Internal */
+	Version string `json:"-"`
 }
 
 var (
