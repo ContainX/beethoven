@@ -5,15 +5,21 @@ import (
 	"fmt"
 	cc "github.com/ContainX/go-springcloud/config"
 	"github.com/ContainX/go-utils/encoding"
+	"github.com/ContainX/go-utils/logger"
 	"github.com/kelseyhightower/envconfig"
 	_ "github.com/kelseyhightower/envconfig"
 	"github.com/spf13/cobra"
 	"os"
+	"regexp"
 )
 
 const (
-	EnvErrorFmt = "Error creating config from env: %s"
+	EnvErrorFmt              = "Error creating config from env: %s"
+	DefaultNginxTemplatePath = "/etc/nginx/nginx.template"
+	DefaultNginxConfPath     = "/etc/nginx/nginx.conf"
 )
+
+var log = logger.GetLogger("beethoven.config")
 
 // Config provides configuration information for Marathon streams and the proxy
 type Config struct {
@@ -32,13 +38,19 @@ type Config struct {
 	// Optional regex filter to only reload based on certain apps that match
 	// ex. ^.*something.* would match all /apps/something app identifiers
 	// Enivronment variable: BT_FILTER_REGEX
-	FilterRegEx string `json:"filter_regex" envconfig:"filter_regex"`
+	FilterRegExStr string `json:"filter_regex" envconfig:"filter_regex"`
+
+	// Resolved Filter regex
+	filterRegEx *regexp.Regexp
 
 	// Port to listen to HTTP requests.  Default 7777
 	Port int `json:"port"`
 
-	// Location to nginx.conf template
+	// Location to nginx.conf template - default: /etc/nginx/nginx.template
 	Template string `json:"template"`
+
+	// Location of the nginx.conf - default: /etc/nginx/nginx.conf
+	NginxConfig string `json:"nginx_config"`
 
 	/* Internal */
 	Version string `json:"-"`
@@ -92,7 +104,7 @@ func LoadConfigFromCommand(cmd *cobra.Command) (*Config, error) {
 	if len(cfg.MarthonUrls) == 0 {
 		return nil, fmt.Errorf(EnvErrorFmt, "BT_MARATHON_URLS not defined")
 	}
-	return cfg, nil
+	return cfg.loadDefaults(), nil
 }
 
 // loadFromFile loads the config from a file and returns the config
@@ -111,7 +123,7 @@ func loadFromFile(configFile string) (*Config, error) {
 	if err := encoder.UnMarshalFile(configFile, cfg); err != nil {
 		return nil, err
 	}
-	return cfg, nil
+	return cfg.loadDefaults(), nil
 }
 
 // loadFromRemote loads the config from a remote configuration server, specifically
@@ -132,7 +144,7 @@ func loadFromRemote(server, appName, label, profile string) (*Config, error) {
 	if err := client.Fetch(cfg); err != nil {
 		return nil, err
 	}
-	return cfg, nil
+	return cfg.loadDefaults(), nil
 }
 
 /* Config receivers */
@@ -144,4 +156,37 @@ func (c *Config) HttpPort() int {
 		return 7777
 	}
 	return c.Port
+}
+
+func (c *Config) loadDefaults() *Config {
+	if c.NginxConfig == "" {
+		c.NginxConfig = DefaultNginxConfPath
+	}
+	if c.Template == "" {
+		c.Template = DefaultNginxTemplatePath
+	}
+
+	c.ParseRegEx()
+	return c
+}
+
+// ParseRegEx validates and parses that the regex is valid. If the FilterRegExpStr is invalid
+// the value is emptied and an Error is logged
+func (c *Config) ParseRegEx() {
+	if c.FilterRegExStr != "" {
+		if rx, err := regexp.Compile(c.FilterRegExStr); err != nil {
+			log.Error("Error: ignoring user regex filter: %s", err.Error())
+			c.FilterRegExStr = ""
+		} else {
+			c.filterRegEx = rx
+		}
+	}
+}
+
+func (c *Config) IsFilterDefined() bool {
+	return c.filterRegEx != nil
+}
+
+func (c *Config) Filter() *regexp.Regexp {
+	return c.filterRegEx
 }

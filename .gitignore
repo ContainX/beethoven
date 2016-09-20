@@ -29,3 +29,5 @@ _testmain.go
 *.DS_Store
 .idea
 beethoven
+devconf.json
+temp

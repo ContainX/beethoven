@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/ContainX/beethoven/config"
 	"github.com/ContainX/beethoven/generator"
+	"github.com/ContainX/beethoven/tracker"
 	"github.com/gorilla/mux"
 	"net/http"
 )
@@ -20,6 +21,7 @@ type Proxy struct {
 	cfg        *config.Config
 	httpServer *http.Server
 	generator  *generator.Generator
+	tracker    *tracker.Tracker
 }
 
 func New(cfg *config.Config) *Proxy {
@@ -36,7 +38,11 @@ func (p *Proxy) Serve() {
 		Addr:    fmt.Sprintf(":%d", p.cfg.HttpPort()),
 		Handler: mux,
 	}
-	p.generator = generator.New(p.cfg)
+
+	p.tracker = tracker.New(p.cfg)
+
+	// Start Marathon configuration generator
+	p.generator = generator.New(p.cfg, p.tracker)
 	p.generator.Watch(p.validateConfig)
 
 	p.httpServer.ListenAndServe()
