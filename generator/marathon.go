@@ -54,6 +54,7 @@ func (g *Generator) Watch(handler func(proxyConf string)) {
 	go g.initReloadWatcher()
 }
 
+// Watches the reload channel and generated a new config
 func (g *Generator) initReloadWatcher() {
 	throttle := time.NewTicker(2 * time.Second)
 	for {
@@ -68,21 +69,35 @@ func (g *Generator) initReloadWatcher() {
 
 func (g *Generator) generateConfig() {
 	if err := g.buildAppMeta(); err != nil {
-		log.Error("Skipping config generatin...")
+		log.Error("Skipping config generation...")
 		g.tracker.SetError(err)
 		return
 	}
 
-	if err := g.writeConfiguration(); err != nil {
+	changed, err := g.writeConfiguration()
+	if err != nil {
 		log.Error(err.Error())
 		g.tracker.SetError(err)
 		return
+	}
+
+	if changed {
+		log.Info("Reloading NGINX")
+		err = g.reload()
+		if err != nil {
+			log.Error(err.Error())
+			g.tracker.SetError(err)
+			return
+		}
 	}
 
 	// No errors - clear tracker
 	g.tracker.SetError(nil)
 }
 
+// buildAppMeta Builds the app metadata used within our templates.  It is responsible
+// for fetching apps and tasks and remove tasks that are not healthy or the application
+// all together if their are no serviceable tasks
 func (g *Generator) buildAppMeta() error {
 	apps, err := g.marathon.ListApplicationsWithFilters("embed=apps.tasks")
 	if err != nil {
@@ -90,6 +105,8 @@ func (g *Generator) buildAppMeta() error {
 		return err
 	}
 
+	// Reset current context since the config won't be rewritten until syntax
+	// and validation occurs
 	g.templateData.Apps = map[string]*App{}
 
 	for _, a := range apps.Apps {
@@ -101,6 +118,8 @@ func (g *Generator) buildAppMeta() error {
 		tapp.Labels = a.Labels
 		tapp.Tasks = []Task{}
 
+		// Iterate through the apps tasks - remove any tasks that do not match
+		// our criteria for being healthy
 		for _, t := range a.Tasks {
 			// Skip tasks with no ports
 			if len(t.Ports) == 0 {
@@ -139,6 +158,9 @@ func (g *Generator) buildAppMeta() error {
 	return nil
 }
 
+// Translate Marathon IDs using /'s to '-' since we need identifiers
+// that are compat with templates.
+// ex: /products/stores/someservice would be products-stores-someservice
 func appIdToDashes(appId string) string {
 	parts := strings.Split(appId[1:], "/")
 	return strings.Join(parts, "-")

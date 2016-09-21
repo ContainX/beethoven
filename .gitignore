@@ -30,4 +30,5 @@ _testmain.go
 .idea
 beethoven
 devconf.json
+dockerconf.json
 temp

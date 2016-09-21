@@ -58,29 +58,34 @@ type Config struct {
 
 var (
 	FileNotFound = errors.New("Cannot find the specified config file")
+	dryRun       = false
 )
 
 // AddFlags is a hook to add additional CLI Flags
 func AddFlags(cmd *cobra.Command) {
-	cmd.Flags().String("config", "", "Path and filename of local configuration file. ex: config.yml")
-	cmd.Flags().String("remote", "", "URI to remote config server. ex: http://server:8888")
-	cmd.Flags().String("name", "beethoven", "Remote Config: The name of the app, env: CONFIG_NAME")
-	cmd.Flags().String("label", "master", "Remote Config: The branch to fetch the config from, env: CONFIG_LABEL")
-	cmd.Flags().String("profile", "default", "Remote Config: The profile to use, env: CONFIG_PROFILE")
+	cmd.Flags().StringP("config", "c", "", "Path and filename of local configuration file. ex: config.yml")
+	cmd.Flags().BoolP("remote", "r", false, "Use remote configuraion server")
+	cmd.Flags().StringP("server", "s", "", "Remote: URI to remote config server. ex: http://server:8888")
+	cmd.Flags().String("name", "beethoven", "Remote: The name of the app, env: CONFIG_NAME")
+	cmd.Flags().String("label", "master", "Remote: The branch to fetch the config from, env: CONFIG_LABEL")
+	cmd.Flags().String("profile", "default", "Remote: The profile to use, env: CONFIG_PROFILE")
+	cmd.Flags().Bool("dryrun", false, "Bypass NGINX validation/reload -- used for debugging logs")
 }
 
 func LoadConfigFromCommand(cmd *cobra.Command) (*Config, error) {
-	remote, _ := cmd.Flags().GetString("remote")
+	remote, _ := cmd.Flags().GetBool("remote")
 	config, _ := cmd.Flags().GetString("config")
+	dryRun, _ = cmd.Flags().GetBool("dryrun")
 
-	if config != "" {
-		return loadFromFile(config)
-	}
-
-	if remote != "" {
+	if remote {
+		server := os.Getenv("CONFIG_SERVER")
 		name := os.Getenv("CONFIG_NAME")
 		label := os.Getenv("CONFIG_LABEL")
 		profile := os.Getenv("CONFIG_PROFILE")
+
+		if server == "" {
+			server, _ = cmd.Flags().GetString("server")
+		}
 
 		if name == "" {
 			name, _ = cmd.Flags().GetString("name")
@@ -93,7 +98,11 @@ func LoadConfigFromCommand(cmd *cobra.Command) (*Config, error) {
 			profile, _ = cmd.Flags().GetString("profile")
 
 		}
-		return loadFromRemote(remote, name, label, profile)
+		return loadFromRemote(server, name, label, profile)
+	}
+
+	if config != "" {
+		return loadFromFile(config)
 	}
 
 	cfg := new(Config)
@@ -189,4 +198,8 @@ func (c *Config) IsFilterDefined() bool {
 
 func (c *Config) Filter() *regexp.Regexp {
 	return c.filterRegEx
+}
+
+func (c *Config) DryRun() bool {
+	return dryRun
 }

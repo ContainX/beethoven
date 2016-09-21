@@ -12,6 +12,12 @@ type Updates struct {
 }
 
 type Status struct {
-	LastUpdated Updates
-	LastError   error
+	LastUpdated     Updates
+	LastError       error
+	ValidationError *ValidationError
+}
+
+type ValidationError struct {
+	Error        error
+	FailedConfig string
 }

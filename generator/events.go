@@ -7,7 +7,7 @@ import (
 func (g *Generator) initSSEStream() {
 	g.events = make(marathon.EventsChannel, 5)
 
-	filter := marathon.EventIDStatusUpdate | marathon.EventIDAPIRequest | marathon.EventIDChangedHealthCheck
+	filter := marathon.EventIDStatusUpdate | marathon.EventIDChangedHealthCheck
 
 	err := g.marathon.CreateEventStreamListener(g.events, filter)
 	if err != nil {
@@ -48,12 +48,17 @@ func (g *Generator) shouldTriggerReload(appId string, event *marathon.Event) boo
 		log.Warning("Event: Could not locate AppId: %s", event)
 		return false
 	}
+
+	trigger := true
+
 	if g.cfg.IsFilterDefined() {
 		match := g.cfg.Filter().MatchString(appId)
 		log.Debug("Matching appId: %s to filter: %s -> %v", appId, g.cfg.FilterRegExStr, match)
-		return match
+		log.Debug("Event: %s", event)
+		trigger = match
 	}
-	return true
+
+	return trigger
 }
 
 // getAppID returns the application indentifier for only the evens we care to

@@ -5,7 +5,9 @@ import (
 	"github.com/ContainX/beethoven/config"
 	"github.com/ContainX/beethoven/proxy"
 	"github.com/ContainX/depcon/pkg/logger"
+	"github.com/op/go-logging"
 	"github.com/spf13/cobra"
+	"os"
 )
 
 const (
@@ -41,7 +43,8 @@ var (
 		Example: Example,
 	}
 	// Logger
-	log = logger.GetLogger("beethoven")
+	log    = logger.GetLogger("beethoven")
+	format = logging.MustStringFormatter("%{time:2006-01-02 15:04:05} %{level:.9s} [%{module}]: %{message}")
 )
 
 func serve(cmd *cobra.Command, args []string) {
@@ -56,7 +59,16 @@ func serve(cmd *cobra.Command, args []string) {
 }
 
 func main() {
+	setupLogging()
 	rootCmd.AddCommand(serveCmd)
 	config.AddFlags(serveCmd)
 	rootCmd.Execute()
+}
+
+func setupLogging() {
+	if os.Getenv("DOCKER_ENV") != "" {
+		backend := logging.NewLogBackend(os.Stderr, "", 0)
+		backendFmt := logging.NewBackendFormatter(backend, format)
+		logging.SetBackend(backendFmt)
+	}
 }
