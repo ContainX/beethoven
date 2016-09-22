@@ -22,6 +22,10 @@ func New(cfg *config.Config) *Tracker {
 	}
 }
 
+func (tr *Tracker) GetStatus() Status {
+	return tr.status
+}
+
 func (tr *Tracker) SetError(err error) {
 	tr.status.LastError = err
 }

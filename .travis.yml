@@ -1,0 +1,25 @@
+language: go
+go:
+  - 1.7
+env:
+  - "PATH=$HOME/gopath/bin:$PATH"
+
+before_install:
+  - go get github.com/stretchr/testify
+
+install:
+  - go get -v ./...
+
+script:
+  - go test ./...
+  - go build
+
+after_success:
+  - go build -ldflags "-X main.version=0.1-$TRAVIS_BUILD_NUMBER -X 'main.built=$(date -u '+%Y-%m-%d %H:%M:%S')'"
+  - docker build -t containx/beethoven .
+  - docker push containx/beethoven
+
+# whitelist
+branches:
+  only:
+    - master

@@ -65,7 +65,7 @@ var (
 func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().StringP("config", "c", "", "Path and filename of local configuration file. ex: config.yml")
 	cmd.Flags().BoolP("remote", "r", false, "Use remote configuraion server")
-	cmd.Flags().StringP("server", "s", "", "Remote: URI to remote config server. ex: http://server:8888")
+	cmd.Flags().StringP("server", "s", "", "Remote: URI to remote config server. ex: http://server:8888, env: CONFIG_SERVER")
 	cmd.Flags().String("name", "beethoven", "Remote: The name of the app, env: CONFIG_NAME")
 	cmd.Flags().String("label", "master", "Remote: The branch to fetch the config from, env: CONFIG_LABEL")
 	cmd.Flags().String("profile", "default", "Remote: The profile to use, env: CONFIG_PROFILE")

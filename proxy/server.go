@@ -22,6 +22,7 @@ type Proxy struct {
 	httpServer *http.Server
 	generator  *generator.Generator
 	tracker    *tracker.Tracker
+	mux        *mux.Router
 }
 
 func New(cfg *config.Config) *Proxy {
@@ -30,13 +31,18 @@ func New(cfg *config.Config) *Proxy {
 	}
 }
 
+func (p *Proxy) initRoutes() {
+	p.mux.HandleFunc("/bt", p.getVersion)
+	p.mux.HandleFunc("/bt/status/", p.getStatus)
+}
+
 func (p *Proxy) Serve() {
-	mux := mux.NewRouter()
-	mux.HandleFunc("/", p.getVersion)
+	p.mux = mux.NewRouter()
+	p.initRoutes()
 
 	p.httpServer = &http.Server{
 		Addr:    fmt.Sprintf(":%d", p.cfg.HttpPort()),
-		Handler: mux,
+		Handler: p.mux,
 	}
 
 	p.tracker = tracker.New(p.cfg)

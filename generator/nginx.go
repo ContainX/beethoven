@@ -39,7 +39,7 @@ func (g *Generator) writeConfiguration() (bool, error) {
 	}
 
 	g.tracker.SetLastConfigRendered(time.Now())
-	log.Info("wrote config: %s, contents: \n\n%s", tplFilename, result)
+	//	log.Info("wrote config: %s, contents: \n\n%s", tplFilename, result)
 
 	if g.cfg.DryRun() {
 		log.Debug("Has Changed from Config : %v", g.templateAndConfMatch(tplFilename))
