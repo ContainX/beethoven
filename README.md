@@ -66,6 +66,21 @@ docker run -p 80:80 -d myloadbalancer -c /etc/btconf.json
 
 Now open your browser and test paths you created at http://localhost
 
+
+### Using a remote configuration file on Startup
+
+A good practice is to keep configuration outside of Docker so the same container can be used between environments (QA, Prod, etc).  
+
+Beethoven has built in support for using [spring-cloud-config](http://cloud.spring.io/spring-cloud-static/spring-cloud-config/1.2.0.RELEASE/) for centralized configuration.  Lets take the Docker example above but run it using our remote server.
+
+
+```
+docker run -p 80:80 -d myloadbalancer --remote --server http://spring-cloud-host:8888 --name myloadbalancer --profile prod
+```
+
+You can also specify the `--label` option which is the SCM branch the configuration server is pulling from. The names used above `profile, label and name` are the same names referenced in the official guide for `spring-cloud-config`. http://cloud.spring.io/spring-cloud-static/spring-cloud-config/1.2.0.RELEASE/
+
+
 ## License
 
 This software is licensed under the Apache 2 license, quoted below.
