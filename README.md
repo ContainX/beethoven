@@ -44,7 +44,7 @@ Create a file that ends in `.json`.  In this example we'll call it `btconf.json`
   
 Add/Modify any options to suit your needs.  For a description and all possible configuration options refer to the docs found within the [config.go](https://github.com/ContainX/beethoven/blob/master/config/config.go) file.
  
-### Create a Dockerfile
+#### Create a Dockerfile
 
 Next we will create the `Dockerfile` to package up the `nginx.template` and `btconf.json` files.  If you used the filenames in this guide then simply copy the code below into your `Dockerfile`.
 
@@ -55,7 +55,7 @@ ADD nginx.template /etc/nginx/nginx.template
 ADD btconf.json /etc/btconf.json
 ```
 
-### Build and Testing your Container
+#### Build and Testing your Container
 
 Build and Run your Container
 
@@ -66,8 +66,7 @@ docker run -p 80:80 -d myloadbalancer -c /etc/btconf.json
 
 Now open your browser and test paths you created at http://localhost
 
-
-### Using a remote configuration file on Startup
+#### Using a remote configuration file on Startup
 
 A good practice is to keep configuration outside of Docker so the same container can be used between environments (QA, Prod, etc).  
 
