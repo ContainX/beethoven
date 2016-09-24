@@ -21,7 +21,8 @@ after_success:
   - go build -ldflags "-X main.version=0.1-$TRAVIS_BUILD_NUMBER -X 'main.built=$(date -u '+%Y-%m-%d %H:%M:%S')'"
   - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
   - docker build -t containx/beethoven .
-  - docker push containx/beethoven
+  - docker tag containx/beethoven containx/beethoven:0.1-$TRAVIS_BUILD_NUMBER
+  - docker push containx/beethoven:0.1-$TRAVIS_BUILD_NUMBER
 # whitelist
 branches:
   only:
