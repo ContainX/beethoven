@@ -4,7 +4,7 @@ Is a Mesos/Marathon stream listener which manages an NGINX proxy instance within
 
 This is a similar solution to `marathon-lb` but for the HTTP layer offering NGINX's advance http level uri routing.
 
-## Overview
+### Overview
 
 ![Architecture](images/architecture.jpg?raw=true "Architecture")
 
@@ -23,11 +23,48 @@ After the template has been parsed a temp Nginx configuration file is rendered w
 * Listens to the realtime SSE from Marathon to quickly change upstreams based on application/tasks state changes
 * RESTful endpoints for current status
 * Flexible configuration options (local config, spring-cloud configuration remote configuration fetching and ENV variables)
-* Easy to get started add a `FROM containx/beethoven` to your `Dockerfile` add your template, config options and release!
+* Easy to get started add a `FROM containx/beethoven` to your `Dockerfile` add your template, config options and deploy!
 
-## Getting Started
+### Getting Started
 
-TODO DOC
+Below we will cover the barebones setup to get going.  
+
+#### Create a Template
+
+Create a file called `nginx.template`.  Refer to the `nginx.template` found in the [examples/](https://github.com/ContainX/beethoven/tree/master/examples) directory in this repo. Modify the example to suit your own needs 
+
+**A couple notes about the example template:**  
+- The `{{#if}}` blocks are optional.  I prefer these so if an application is removed all together in the cluster then the final `nginx.conf` is valid
+- The `/_health` endpoint at the bottom is optional.  If allows for Marathon health checks to use that to determine Nginx is running. 
+- The `/_bt` endpoint at the bottom is optional.  If you would like to find information such as updated times and any failures from Beethoven then this mapping allows you to expose these internal endpoints via Nginx.  Alternatively you can expose Beethoven via it's configured port.
+
+### Create the Beethoven Configuration File
+
+Create a file that ends in `.json`.  In this example we'll call it `btconf.json`. Refer to the `btconf.json` found in the [examples/](https://github.com/ContainX/beethoven/tree/master/examples) directory in this repo.
+  
+Add/Modify any options to suit your needs.  For a description and all possible configuration options refer to the docs found within the [config.go](https://github.com/ContainX/beethoven/blob/master/config/config.go) file.
+ 
+### Create a Dockerfile
+
+Next we will create the `Dockerfile` to package up the `nginx.template` and `btconf.json` files.  If you used the filenames in this guide then simply copy the code below into your `Dockerfile`.
+
+```
+FROM containx/beethoven
+
+ADD nginx.template /etc/nginx/nginx.template
+ADD btconf.json /etc/btconf.json
+```
+
+### Build and Testing your Container
+
+Build and Run your Container
+
+```
+docker build -t myloadbalancer .
+docker run -p 80:80 -d myloadbalancer -c /etc/btconf.json
+```
+
+Now open your browser and test paths you created at http://localhost
 
 ## License
 
