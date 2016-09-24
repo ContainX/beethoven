@@ -19,7 +19,6 @@ after_success:
   - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
   - docker build -t containx/beethoven .
   - docker push containx/beethoven
-
 # whitelist
 branches:
   only:
