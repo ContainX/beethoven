@@ -20,6 +20,7 @@ After the template has been parsed a temp Nginx configuration file is rendered w
 
 * Uses Nginx for HTTP based loadbalancing
 * Handlebars for powerful template parsing
+* Allows stream filtering so Nginx re-configuration is only triggered by RegEx patterns
 * Listens to the realtime SSE from Marathon to quickly change upstreams based on application/tasks state changes
 * RESTful endpoints for current status
 * Flexible configuration options (local config, spring-cloud configuration remote configuration fetching and ENV variables)
