@@ -34,6 +34,7 @@ func New(cfg *config.Config) *Proxy {
 func (p *Proxy) initRoutes() {
 	p.mux.HandleFunc("/bt", p.getVersion)
 	p.mux.HandleFunc("/bt/status/", p.getStatus)
+	p.mux.HandleFunc("/bt/config/", p.getConfig)
 }
 
 func (p *Proxy) Serve() {
