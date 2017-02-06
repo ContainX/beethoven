@@ -52,6 +52,11 @@ type Config struct {
 	// Location of the nginx.conf - default: /etc/nginx/nginx.conf
 	NginxConfig string `json:"nginx_config"`
 
+
+	// User defined configuration data that can be used as part of the template parsing
+	// if Beethoven is launched with --root-apps=false .
+	Data map[string]interface{}
+
 	/* Internal */
 	Version string `json:"-"`
 }
@@ -59,6 +64,7 @@ type Config struct {
 var (
 	FileNotFound = errors.New("Cannot find the specified config file")
 	dryRun       = false
+	rootedApps   = true
 )
 
 // AddFlags is a hook to add additional CLI Flags
@@ -70,12 +76,14 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().String("label", "master", "Remote: The branch to fetch the config from, env: CONFIG_LABEL")
 	cmd.Flags().String("profile", "default", "Remote: The profile to use, env: CONFIG_PROFILE")
 	cmd.Flags().Bool("dryrun", false, "Bypass NGINX validation/reload -- used for debugging logs")
+	cmd.Flags().Bool("root-apps", true, "True by defaults, template context is all apps from marathon.  False, apps is a field in the template as well as config")
 }
 
 func LoadConfigFromCommand(cmd *cobra.Command) (*Config, error) {
 	remote, _ := cmd.Flags().GetBool("remote")
 	config, _ := cmd.Flags().GetString("config")
 	dryRun, _ = cmd.Flags().GetBool("dryrun")
+	rootedApps, _ = cmd.Flags().GetBool("root-apps")
 
 	if remote {
 		server := os.Getenv("CONFIG_SERVER")
@@ -202,4 +210,10 @@ func (c *Config) Filter() *regexp.Regexp {
 
 func (c *Config) DryRun() bool {
 	return dryRun
+}
+
+// IsTemplatedAppRooted means that application from marathon are the actual object during
+// template parsing.  If false then applications are a sub-element.
+func (c *Config) IsTemplatedAppRooted() bool {
+	return rootedApps
 }

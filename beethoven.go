@@ -36,12 +36,14 @@ var (
 		Long:    fmt.Sprintf(Usage, version, built),
 		Example: Example,
 	}
+
 	serveCmd = &cobra.Command{
 		Use:     "serve",
 		Short:   "Start serving traffic",
 		Run:     serve,
 		Example: Example,
 	}
+
 	// Logger
 	log    = logger.GetLogger("beethoven")
 	format = logging.MustStringFormatter("%{time:2006-01-02 15:04:05} %{level:.9s} [%{module}]: %{message}")

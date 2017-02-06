@@ -18,11 +18,11 @@ script:
   - go build
 
 after_success:
-  - go build -ldflags "-X main.version=0.$TRAVIS_BUILD_NUMBER -X 'main.built=$(date -u '+%Y-%m-%d %H:%M:%S')'"
+  - go build -ldflags "-X main.version=1.$TRAVIS_BUILD_NUMBER -X 'main.built=$(date -u '+%Y-%m-%d %H:%M:%S')'"
   - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
   - docker build -t containx/beethoven .
-  - docker tag containx/beethoven containx/beethoven:0.$TRAVIS_BUILD_NUMBER
-  - docker push containx/beethoven:0.$TRAVIS_BUILD_NUMBER
+  - docker tag containx/beethoven containx/beethoven:1.$TRAVIS_BUILD_NUMBER
+  - docker push containx/beethoven:1.$TRAVIS_BUILD_NUMBER
   - docker push containx/beethoven
 # whitelist
 branches:

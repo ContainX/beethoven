@@ -1,4 +1,4 @@
-FROM nginx:stable
+FROM nginx:mainline
 
 ENV DOCKER_ENV true
 

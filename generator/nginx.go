@@ -26,7 +26,18 @@ func (g *Generator) writeConfiguration() (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("Error loading template: %s", err.Error())
 	}
-	result, err := tpl.Exec(g.templateData.Apps)
+
+	var ctx interface{} = g.templateData.Apps
+	if g.cfg.IsTemplatedAppRooted() == false {
+		if g.cfg.Data != nil {
+			g.templateData.Data = g.cfg.Data
+		} else {
+			g.templateData.Data = map[string]interface{}{}
+		}
+		ctx = g.templateData
+	}
+
+	result, err := tpl.Exec(ctx)
 	if err != nil {
 		return false, err
 	}
@@ -39,7 +50,7 @@ func (g *Generator) writeConfiguration() (bool, error) {
 	}
 
 	g.tracker.SetLastConfigRendered(time.Now())
-	//	log.Info("wrote config: %s, contents: \n\n%s", tplFilename, result)
+		log.Info("wrote config: %s, contents: \n\n%s", tplFilename, result)
 
 	if g.cfg.DryRun() {
 		log.Debug("Has Changed from Config : %v", g.templateAndConfMatch(tplFilename))

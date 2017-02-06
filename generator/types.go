@@ -22,6 +22,7 @@ type App struct {
 
 type TemplateData struct {
 	Apps map[string]*App
+	Data map[string]interface{}
 }
 
 func marathonTaskToTask(mt *marathon.Task) Task {
