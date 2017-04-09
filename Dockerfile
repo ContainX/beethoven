@@ -8,7 +8,6 @@ RUN apt-get update \
 
 COPY beethoven /usr/sbin/beethoven
 COPY scripts/run.sh /bin/run.sh
-
 RUN chmod a+x /bin/run.sh
 
 COPY scripts/supervisord.conf /etc/supervisord.tmpl

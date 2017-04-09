@@ -5,6 +5,7 @@ import (
 	"github.com/ContainX/beethoven/config"
 	"github.com/ContainX/beethoven/generator"
 	"github.com/ContainX/beethoven/tracker"
+	"github.com/ContainX/depcon/pkg/logger"
 	"github.com/gorilla/mux"
 	"net/http"
 )
@@ -15,6 +16,10 @@ const (
   "description": "Mesos/Marathon HTTP Proxy",
   "version": "%s"
 }`
+)
+
+var (
+	log = logger.GetLogger("beethoven.proxy")
 )
 
 type Proxy struct {
@@ -35,6 +40,7 @@ func (p *Proxy) initRoutes() {
 	p.mux.HandleFunc("/bt", p.getVersion)
 	p.mux.HandleFunc("/bt/status/", p.getStatus)
 	p.mux.HandleFunc("/bt/config/", p.getConfig)
+	p.mux.HandleFunc("/bt/reload/", p.reloadConfig)
 }
 
 func (p *Proxy) Serve() {

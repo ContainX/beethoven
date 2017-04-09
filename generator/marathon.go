@@ -67,6 +67,10 @@ func (g *Generator) initReloadWatcher() {
 	}
 }
 
+func (g *Generator) ReloadConfiguration() {
+	g.generateConfig()
+}
+
 func (g *Generator) generateConfig() {
 	if err := g.buildAppMeta(); err != nil {
 		log.Error("Skipping config generation...")

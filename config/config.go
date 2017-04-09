@@ -27,6 +27,10 @@ type Config struct {
 	// Enivronment variable: BT_MARATHON_URLS
 	MarthonUrls []string `json:"marthon_urls" envconfig:"marathon_urls"`
 
+	// The Marathon ID for Beethoven (optional).  If set,
+	// will allow for reloading new configuration changes (if using user Data below).
+	MarathonServiceId string `json:"marathon_service_id"`
+
 	// The basic auth username - if applicable
 	// Enivronment variable: BT_USERNAME
 	Username string `json:"username"`
@@ -52,13 +56,21 @@ type Config struct {
 	// Location of the nginx.conf - default: /etc/nginx/nginx.conf
 	NginxConfig string `json:"nginx_config"`
 
-
 	// User defined configuration data that can be used as part of the template parsing
 	// if Beethoven is launched with --root-apps=false .
 	Data map[string]interface{}
 
 	/* Internal */
-	Version string `json:"-"`
+	Version string         `json:"-"`
+	conext  *reloadContext `json:"-"`
+}
+
+type reloadContext struct {
+	server   string
+	name     string
+	label    string
+	profile  string
+	filename string
 }
 
 var (
@@ -140,6 +152,7 @@ func loadFromFile(configFile string) (*Config, error) {
 	if err := encoder.UnMarshalFile(configFile, cfg); err != nil {
 		return nil, err
 	}
+	cfg.conext = &reloadContext{filename: configFile}
 	return cfg.loadDefaults(), nil
 }
 
@@ -161,10 +174,42 @@ func loadFromRemote(server, appName, label, profile string) (*Config, error) {
 	if err := client.Fetch(cfg); err != nil {
 		return nil, err
 	}
+	cfg.conext = &reloadContext{
+		server:  server,
+		name:    appName,
+		label:   label,
+		profile: profile,
+	}
 	return cfg.loadDefaults(), nil
 }
 
 /* Config receivers */
+
+// Reload will re-fetch/load the a subset of the configuration and apply it.
+// The data applied is "Data" and "FilterRegExStr" values
+func (c *Config) Reload() bool {
+	newCfg, err := loadConfigFromContext(c.conext)
+	if err != nil {
+		log.Errorf("Error reloading configuration: %s", err.Error())
+		return false
+	}
+
+	c.Data = newCfg.Data
+
+	if c.FilterRegExStr != newCfg.FilterRegExStr {
+		c.FilterRegExStr = newCfg.FilterRegExStr
+		c.ParseRegEx()
+	}
+	log.Info("Configuration successfully reloaded")
+	return true
+}
+
+func loadConfigFromContext(c *reloadContext) (*Config, error) {
+	if c.filename != "" {
+		return loadFromFile(c.filename)
+	}
+	return loadFromRemote(c.server, c.name, c.label, c.profile)
+}
 
 // HttpPort is the port we serve the API with
 // default 7777 if config port is undefined

@@ -33,3 +33,4 @@ devconf.json
 dockerconf.json
 temp
 Dockerfile.temp
+tmp
