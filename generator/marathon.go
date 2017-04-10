@@ -37,6 +37,11 @@ func New(cfg *config.Config, tracker *tracker.Tracker) *Generator {
 	}
 }
 
+// MarathonClient returns the Marathon client
+func (g *Generator) MarathonClient() marathon.Marathon {
+	return g.marathon
+}
+
 // Watch marathon for changes using streams and make callbacks to the specified
 // handler when apps have been added, removed or health changes.
 func (g *Generator) Watch(handler func(proxyConf string)) {

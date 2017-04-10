@@ -5,6 +5,7 @@ import (
 	"github.com/ContainX/depcon/pkg/encoding"
 	"io/ioutil"
 	"net/http"
+	"strings"
 )
 
 func (p *Proxy) getStatus(w http.ResponseWriter, r *http.Request) {
@@ -36,9 +37,30 @@ func (p *Proxy) reloadConfig(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Will trigger reload config on all instances of Beethoven in a cluster
+// if invoked.
 func (p *Proxy) reloadAll(w http.ResponseWriter, r *http.Request) {
 	if p.cfg.MarathonServiceId != "" {
-		// Will trigger reload config on all instances of Beethoven in a cluster
-		// if invoked.
+		if r.Method != http.MethodPost {
+			log.Error("Reload Configuration - invalid method %s", r.Method)
+			return
+		}
+		if app, err := p.generator.MarathonClient().GetApplication(p.cfg.MarathonServiceId); err == nil {
+			// Iterate through all tasks and invoke Reload
+			for _, task := range app.Tasks {
+				if len(task.Ports) > 0 {
+					log.Info("Sending reload to instance: %s:%d", task.Host, task.Ports[0])
+					uri := fmt.Sprintf("http://%s:%d/bt/reload/", task.Host, task.Ports[0])
+					r, err := http.DefaultClient.Post(uri, "application/json", strings.NewReader("{}"))
+					if err != nil {
+						log.Error(err.Error())
+					} else {
+						log.Info("%s:%d response: %d", task.Host, task.Ports[0], r.StatusCode)
+					}
+				}
+			}
+		} else {
+			log.Error("Error - reload all: %s", err.Error())
+		}
 	}
 }

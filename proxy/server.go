@@ -41,6 +41,8 @@ func (p *Proxy) initRoutes() {
 	p.mux.HandleFunc("/bt/status/", p.getStatus)
 	p.mux.HandleFunc("/bt/config/", p.getConfig)
 	p.mux.HandleFunc("/bt/reload/", p.reloadConfig)
+	p.mux.HandleFunc("/bt/reloadall/", p.reloadAll)
+
 }
 
 func (p *Proxy) Serve() {
