@@ -50,7 +50,7 @@ func (p *Proxy) reloadAll(w http.ResponseWriter, r *http.Request) {
 			for _, task := range app.Tasks {
 				if len(task.Ports) > 0 {
 					log.Info("Sending reload to instance: %s:%d", task.Host, task.Ports[0])
-					uri := fmt.Sprintf("http://%s:%d/bt/reload/", task.Host, task.Ports[0])
+					uri := fmt.Sprintf("%s://%s:%d/bt/reload/", p.cfg.Scheme, task.Host, task.Ports[0])
 					r, err := http.DefaultClient.Post(uri, "application/json", strings.NewReader("{}"))
 					if err != nil {
 						log.Error(err.Error())

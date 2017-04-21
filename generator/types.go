@@ -2,6 +2,7 @@ package generator
 
 import (
 	"github.com/ContainX/depcon/marathon"
+	"github.com/ContainX/beethoven/config"
 )
 
 type Task struct {
@@ -11,6 +12,11 @@ type Task struct {
 	StagedAt     string
 	StartedAt    string
 	Version      string
+}
+
+type ProxyConfigHandler interface {
+	ShouldTriggerReload(appId string) bool
+	Config() *config.Config
 }
 
 type App struct {

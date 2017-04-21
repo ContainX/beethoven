@@ -14,15 +14,22 @@ import (
 )
 
 const (
-	EnvErrorFmt              = "Error creating config from env: %s"
-	DefaultNginxTemplatePath = "/etc/nginx/nginx.template"
-	DefaultNginxConfPath     = "/etc/nginx/nginx.conf"
+	EnvErrorFmt                            = "Error creating config from env: %s"
+	DefaultNginxTemplatePath               = "/etc/nginx/nginx.template"
+	DefaultNginxConfPath                   = "/etc/nginx/nginx.conf"
+	MarathonScheduler        SchedulerType = 0
+	SwarmScheduler           SchedulerType = 1
 )
+
+type SchedulerType int
 
 var log = logger.GetLogger("beethoven.config")
 
 // Config provides configuration information for Marathon streams and the proxy
 type Config struct {
+	// Scheduler type to use (0 for Marathon, 1 for Swarm)
+	SchedulerType SchedulerType
+
 	// The URL to Marathon: ex. http://host:8080
 	// Enivronment variable: BT_MARATHON_URLS
 	MarthonUrls []string `json:"marthon_urls" envconfig:"marathon_urls"`
@@ -50,6 +57,9 @@ type Config struct {
 	// Port to listen to HTTP requests.  Default 7777
 	Port int `json:"port"`
 
+	// Scheme we are listening to (http | https)
+	Scheme string `json:"scheme"`
+
 	// Location to nginx.conf template - default: /etc/nginx/nginx.template
 	Template string `json:"template"`
 
@@ -62,7 +72,7 @@ type Config struct {
 
 	/* Internal */
 	Version string         `json:"-"`
-	conext  *reloadContext `json:"-"`
+	context *reloadContext `json:"-"`
 }
 
 type reloadContext struct {
@@ -152,7 +162,7 @@ func loadFromFile(configFile string) (*Config, error) {
 	if err := encoder.UnMarshalFile(configFile, cfg); err != nil {
 		return nil, err
 	}
-	cfg.conext = &reloadContext{filename: configFile}
+	cfg.context = &reloadContext{filename: configFile}
 	return cfg.loadDefaults(), nil
 }
 
@@ -174,7 +184,7 @@ func loadFromRemote(server, appName, label, profile string) (*Config, error) {
 	if err := client.Fetch(cfg); err != nil {
 		return nil, err
 	}
-	cfg.conext = &reloadContext{
+	cfg.context = &reloadContext{
 		server:  server,
 		name:    appName,
 		label:   label,
@@ -188,7 +198,7 @@ func loadFromRemote(server, appName, label, profile string) (*Config, error) {
 // Reload will re-fetch/load the a subset of the configuration and apply it.
 // The data applied is "Data" and "FilterRegExStr" values
 func (c *Config) Reload() bool {
-	newCfg, err := loadConfigFromContext(c.conext)
+	newCfg, err := loadConfigFromContext(c.context)
 	if err != nil {
 		log.Errorf("Error reloading configuration: %s", err.Error())
 		return false
@@ -226,6 +236,9 @@ func (c *Config) loadDefaults() *Config {
 	}
 	if c.Template == "" {
 		c.Template = DefaultNginxTemplatePath
+	}
+	if c.Scheme == "" {
+		c.Scheme = "http"
 	}
 
 	c.ParseRegEx()
