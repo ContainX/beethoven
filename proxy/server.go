@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/ContainX/beethoven/config"
 	"github.com/ContainX/beethoven/generator"
+	"github.com/ContainX/beethoven/scheduler"
 	"github.com/ContainX/beethoven/tracker"
 	"github.com/ContainX/depcon/pkg/logger"
 	"github.com/gorilla/mux"
@@ -26,11 +27,13 @@ type Proxy struct {
 	cfg        *config.Config
 	httpServer *http.Server
 	generator  *generator.Generator
+	scheduler  scheduler.Scheduler
 	tracker    *tracker.Tracker
 	mux        *mux.Router
 }
 
 func New(cfg *config.Config) *Proxy {
+	//cfg.SchedulerType = config.SwarmScheduler
 	return &Proxy{
 		cfg: cfg,
 	}
@@ -55,12 +58,16 @@ func (p *Proxy) Serve() {
 	}
 
 	p.tracker = tracker.New(p.cfg)
+	p.scheduler = scheduler.NewScheduler(p.cfg, p.tracker)
 
-	// Start Marathon configuration generator
-	p.generator = generator.New(p.cfg, p.tracker)
-	p.generator.Watch(p.validateConfig)
+	// Start  configuration generator
+	p.generator = generator.New(p.cfg, p.tracker, p.scheduler)
+	p.generator.Watch(p.debugConfig)
 
 	p.httpServer.ListenAndServe()
+}
+
+func (p *Proxy) debugConfig(conf string) {
 }
 
 func (p *Proxy) getVersion(w http.ResponseWriter, r *http.Request) {

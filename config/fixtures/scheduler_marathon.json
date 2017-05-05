@@ -1,0 +1,13 @@
+{
+  "scheduler_type": 1,
+  "marathon": {
+    "endpoints": [
+      "http://marathon-host-1:8080"
+    ],
+    "username": "username",
+    "password": "password"
+  },
+    "swarm": {
+    "endpoint": "http://localhost:2222"
+  }
+}

@@ -17,8 +17,8 @@ const (
 	EnvErrorFmt                            = "Error creating config from env: %s"
 	DefaultNginxTemplatePath               = "/etc/nginx/nginx.template"
 	DefaultNginxConfPath                   = "/etc/nginx/nginx.conf"
-	MarathonScheduler        SchedulerType = 0
-	SwarmScheduler           SchedulerType = 1
+	MarathonScheduler        SchedulerType = 1
+	SwarmScheduler           SchedulerType = 2
 )
 
 type SchedulerType int
@@ -28,23 +28,23 @@ var log = logger.GetLogger("beethoven.config")
 // Config provides configuration information for Marathon streams and the proxy
 type Config struct {
 	// Scheduler type to use (0 for Marathon, 1 for Swarm)
-	SchedulerType SchedulerType
+	// Only applicable if both Swarm and Marathon are configured
+	SchedulerType SchedulerType `json:"scheduler_type"`
 
-	// The URL to Marathon: ex. http://host:8080
-	// Enivronment variable: BT_MARATHON_URLS
-	MarthonUrls []string `json:"marthon_urls" envconfig:"marathon_urls"`
+	// Docker/Swarm configuration
+	Swarm *SwarmConfig `json:"swarm"`
 
-	// The Marathon ID for Beethoven (optional).  If set,
-	// will allow for reloading new configuration changes (if using user Data below).
-	MarathonServiceId string `json:"marathon_service_id"`
+	// Marathon configuration options
+	Marathon *MarathonConfig `json:"marathon"`
 
-	// The basic auth username - if applicable
-	// Enivronment variable: BT_USERNAME
-	Username string `json:"username"`
+	// Deprecated - Please use Marathon
+	MarthonUrls []string `json:"marthon_urls" envconfig:"-"`
 
-	// The basic auth password - if applicable
-	// Enivronment variable: BT_PASSWORD
-	Password string `json:"password"`
+	// Deprecated - Use Marathon.Username
+	Username string `json:"username" envconfig:"-"`
+
+	// Deprecated - Use Marathon.Password
+	Password string `json:"password" envconfig:"-"`
 
 	// Optional regex filter to only reload based on certain apps that match
 	// ex. ^.*something.* would match all /apps/something app identifiers
@@ -73,6 +73,35 @@ type Config struct {
 	/* Internal */
 	Version string         `json:"-"`
 	context *reloadContext `json:"-"`
+}
+
+type SwarmConfig struct {
+	// Target connection string for Swarm
+	Endpoint string `json:"endpoint"`
+
+	// The name of the network Beethoven should proxy internal requests to
+	Network string `json:"network"`
+
+	// Interval to watch for Swarm topology changes
+	WatchIntervalSecs int `json:"watch_interval_secs"`
+}
+
+type MarathonConfig struct {
+	// The URL to Marathon: ex. http://host:8080
+	// Enivronment variable: BT_MARATHON_URLS
+	Endpoints []string `json:"endpoints" envconfig:"marathon_urls"`
+
+	// The Marathon ID for Beethoven (optional).  If set,
+	// will allow for reloading new configuration changes (if using user Data below).
+	ServiceId string `json:"service_id"`
+
+	// The basic auth username - if applicable
+	// Enivronment variable: BT_USERNAME
+	Username string `json:"username" envconfig:"username"`
+
+	// The basic auth password - if applicable
+	// Enivronment variable: BT_PASSWORD
+	Password string `json:"password" envconfig:"password"`
 }
 
 type reloadContext struct {
@@ -122,11 +151,9 @@ func LoadConfigFromCommand(cmd *cobra.Command) (*Config, error) {
 		}
 		if label == "" {
 			label, _ = cmd.Flags().GetString("label")
-
 		}
 		if profile == "" {
 			profile, _ = cmd.Flags().GetString("profile")
-
 		}
 		return loadFromRemote(server, name, label, profile)
 	}
@@ -239,6 +266,28 @@ func (c *Config) loadDefaults() *Config {
 	}
 	if c.Scheme == "" {
 		c.Scheme = "http"
+	}
+
+	if c.Marathon == nil && (c.MarthonUrls != nil && len(c.MarthonUrls) > 0) {
+		c.Marathon = &MarathonConfig{
+			Endpoints: c.MarthonUrls,
+			Username:  c.Username,
+			Password:  c.Password,
+		}
+		if c.SchedulerType == 0 {
+			c.SchedulerType = MarathonScheduler
+		}
+	} else if c.Marathon != nil && c.SchedulerType == 0 {
+		c.SchedulerType = MarathonScheduler
+	}
+
+	if c.Swarm != nil {
+		if c.Swarm.Endpoint == "" {
+			c.Swarm.Endpoint = "unix:///var/run/docker.sock"
+		}
+		if c.SchedulerType == 0 {
+			c.SchedulerType = SwarmScheduler
+		}
 	}
 
 	c.ParseRegEx()

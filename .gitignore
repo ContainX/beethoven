@@ -34,3 +34,5 @@ dockerconf.json
 temp
 Dockerfile.temp
 tmp
+examples/config.json
+nginx.template

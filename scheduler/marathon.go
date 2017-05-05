@@ -1,35 +1,39 @@
 package scheduler
 
 import (
+	"fmt"
 	"github.com/ContainX/depcon/marathon"
 	"github.com/ContainX/depcon/pkg/logger"
+	"strings"
 	"time"
 )
 
 type marathonService struct {
 	*schedulerService
-	events       marathon.EventsChannel
-	marathon     marathon.Marathon
-	shutdown     ShutdownChan
-	reloadQueue  ReloadChan
+	events   marathon.EventsChannel
+	marathon marathon.Marathon
+	shutdown ShutdownChan
 }
 
-func (m *marathonService) init() {
-	m.shutdown = make(ShutdownChan, 2)
-	m.reloadQueue = make(ReloadChan, 2)
+func createMarathonScheduler(ss *schedulerService) Scheduler {
+	return &marathonService{schedulerService: ss}
 }
 
 // Watch for changes using streams and make callbacks to the specified
 // handler when apps have been added, removed or health changes.
-func (m *marathonService) Watch(handler func(proxyConf string)) {
-	m.handler = handler
+func (m *marathonService) Watch(reload chan bool) {
+	m.shutdown = make(ShutdownChan, 2)
+	m.reload = reload
 
 	// MVP - no health checks - should verify and use healthy masters
-	m.marathon = marathon.NewMarathonClient(m.cfg.MarthonUrls[0], m.cfg.Username, m.cfg.Password)
+	m.marathon = marathon.NewMarathonClient(m.cfg.Marathon.Endpoints[0], m.cfg.Marathon.Username, m.cfg.Marathon.Password)
 
 	// suppress marathon debug
 	logger.SetLevel(logger.WARNING, "client")
 	logger.SetLevel(logger.WARNING, "depcon.marathon")
+
+	m.initSSEStream()
+	m.reload <- true
 }
 
 // Shutdown the current stream watching
@@ -96,6 +100,24 @@ func (m *marathonService) FetchApps() (map[string]*App, error) {
 	return result, nil
 }
 
+func (m *marathonService) FetchBeethovenInstances() ([]*BeethovenInstance, error) {
+	if m.cfg.Marathon.ServiceId == "" {
+		return nil, fmt.Errorf("Marathon Service Identifier must be specified in the configuration")
+	}
+
+	if app, err := m.marathon.GetApplication(m.cfg.Marathon.ServiceId); err != nil {
+		return nil, err
+	} else {
+		instances := []*BeethovenInstance{}
+		for _, task := range app.Tasks {
+			if len(task.Ports) > 0 {
+				instances = append(instances, &BeethovenInstance{Host: task.Host, Port: task.Ports[0]})
+			}
+		}
+		return instances, nil
+	}
+}
+
 func (m *marathonService) initSSEStream() {
 	m.events = make(marathon.EventsChannel, 5)
 
@@ -124,7 +146,7 @@ func (m *marathonService) streamListener() {
 				appId := m.getAppID(event)
 				if m.shouldTriggerReload(appId, event) {
 					select {
-					case m.reloadQueue <- true:
+					case m.reload <- true:
 					default:
 						log.Warning("Reload queue is full")
 					}
@@ -170,4 +192,12 @@ func marathonTaskToTask(mt *marathon.Task) Task {
 	task.StartedAt = mt.StagedAt
 	task.Version = mt.Version
 	return task
+}
+
+// Change IDs using /'s to '-' since we need identifiers
+// that are compat with templates.
+// ex: /products/stores/someservice would be products-stores-someservice
+func appIdToDashes(appId string) string {
+	parts := strings.Split(appId[1:], "/")
+	return strings.Join(parts, "-")
 }

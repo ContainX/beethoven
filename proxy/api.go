@@ -40,27 +40,25 @@ func (p *Proxy) reloadConfig(w http.ResponseWriter, r *http.Request) {
 // Will trigger reload config on all instances of Beethoven in a cluster
 // if invoked.
 func (p *Proxy) reloadAll(w http.ResponseWriter, r *http.Request) {
-	if p.cfg.MarathonServiceId != "" {
-		if r.Method != http.MethodPost {
-			log.Error("Reload Configuration - invalid method %s", r.Method)
-			return
-		}
-		if app, err := p.generator.MarathonClient().GetApplication(p.cfg.MarathonServiceId); err == nil {
-			// Iterate through all tasks and invoke Reload
-			for _, task := range app.Tasks {
-				if len(task.Ports) > 0 {
-					log.Info("Sending reload to instance: %s:%d", task.Host, task.Ports[0])
-					uri := fmt.Sprintf("%s://%s:%d/bt/reload/", p.cfg.Scheme, task.Host, task.Ports[0])
-					r, err := http.DefaultClient.Post(uri, "application/json", strings.NewReader("{}"))
-					if err != nil {
-						log.Error(err.Error())
-					} else {
-						log.Info("%s:%d response: %d", task.Host, task.Ports[0], r.StatusCode)
-					}
-				}
-			}
+	instances, err := p.scheduler.FetchBeethovenInstances()
+	if err != nil {
+		log.Error("Error - reload all: %s", err.Error())
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		log.Error("Reload Configuration - invalid method %s", r.Method)
+		return
+	}
+
+	for _, instance := range instances {
+		log.Info("Sending reload to instance: %s:%d", instance.Host, instance.Port)
+		uri := fmt.Sprintf("%s://%s:%d/bt/reload/", p.cfg.Scheme, instance.Host, instance.Port)
+		r, err := http.DefaultClient.Post(uri, "application/json", strings.NewReader("{}"))
+		if err != nil {
+			log.Error(err.Error())
 		} else {
-			log.Error("Error - reload all: %s", err.Error())
+			log.Info("%s:%d response: %d", instance.Host, instance.Port, r.StatusCode)
 		}
 	}
 }

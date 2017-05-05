@@ -1,0 +1,9 @@
+{
+  "marthon_urls": [ "http://marathon-host-1:8080"],
+  "username": "username",
+  "password": "password",
+  "filter_regex": "",
+  "port": 7777,
+  "template": "/etc/nginx/nginx.template",
+  "nginx_config": "/etc/nginx/nginx.conf"
+}
