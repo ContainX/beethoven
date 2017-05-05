@@ -1,6 +1,6 @@
 # B E E T H O V E N
 
-**Beethoven** is an application written in Go that automatically configures Nginx for applications deployed on Marathon/Mesos.  Beethoven runs in Docker and can be managed by Marathon to provide HTTP loadbalancing.
+**Beethoven** is an application written in Go that automatically configures Nginx for applications deployed on Marathon/Mesos or Docker Swarm.  Beethoven runs in Docker and can be managed by the scheduler to provide HTTP loadbalancing.
 
 **Feature Highlights**
 
@@ -11,11 +11,12 @@
 * RESTful endpoints for current status
 * Flexible configuration options (local config, spring-cloud configuration remote configuration fetching and ENV variables)
 * Easy to get started add a `FROM containx/beethoven` to your `Dockerfile` add your template, config options and deploy!
+* Scheduler Support - Marathon/Mesos or Docker Swarm
 
 
 ### Architecture Overview
 
-![Architecture](images/architecture.jpg?raw=true "Architecture")
+![Architecture](images/beethoven-architecture.jpg?raw=true "Architecture")
 
 Beethoven runs in your cluster as a container managed by Marathon.  This allows for horizontal scaling across the Mesos agents.  Supervisor is leveraged to manage both Nginx and Beethoven since we are running two executables in a single container.
 
@@ -84,7 +85,7 @@ You can also specify the `--label` option which is the SCM branch the configurat
 
 This software is licensed under the Apache 2 license, quoted below.
 
-Copyright 2016 ContainX / Jeremy Unruh
+Copyright 2017 ContainX / Jeremy Unruh
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not
 use this file except in compliance with the License. You may obtain a copy of
