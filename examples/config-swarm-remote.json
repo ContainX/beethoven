@@ -1,0 +1,11 @@
+{
+  "swarm": {
+    "endpoint": "1.1.1.1:2375",
+    "RouteToNode": true
+  },
+  "scheduler_type": 2,
+  "filter_regex": "",
+  "port": 7777,
+  "template": "/etc/nginx/nginx.template",
+  "nginx_config": "/etc/nginx/nginx.conf"
+}

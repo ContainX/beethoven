@@ -89,6 +89,15 @@ type SwarmConfig struct {
 
 	// Interval to watch for Swarm topology changes
 	WatchIntervalSecs int `json:"watch_interval_secs"`
+
+	// TLS Certificate file
+	TLSCert string `json:"tls_cert"`
+	// TLS Certificate key
+	TLSKey string `json:"tls_key"`
+	// TLS CA Certificate
+	TLSCACert string `json:"tlsca_cert"`
+	// Verify TLS
+	TLSVerify bool `json:"tls_verify"`
 }
 
 type MarathonConfig struct {

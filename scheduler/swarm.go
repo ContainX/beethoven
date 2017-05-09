@@ -1,10 +1,14 @@
 package scheduler
 
 import (
+	"errors"
+	"github.com/ContainX/beethoven/config"
 	"github.com/docker/go-connections/nat"
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/moby/moby/api/types/swarm"
 	"net"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -18,11 +22,13 @@ type swarmService struct {
 	*schedulerService
 	started       bool
 	client        *docker.Client
-	services      []serviceData
+	services      Services
 	shutdown      ShutdownChan
 	watchInterval time.Duration
 	nodes         *swarmNodes
 }
+
+type Services []serviceData
 
 type serviceData struct {
 	ServiceName     string
@@ -60,7 +66,7 @@ type nodeData struct {
 
 func createSwarmScheduler(ss *schedulerService) Scheduler {
 	scheduler := &swarmService{schedulerService: ss}
-	client, err := docker.NewClient(ss.cfg.Swarm.Endpoint)
+	client, err := newDockerClient(ss.cfg.Swarm)
 	if err != nil {
 		panic(err)
 	}
@@ -80,6 +86,20 @@ func createSwarmScheduler(ss *schedulerService) Scheduler {
 	return scheduler
 }
 
+func newDockerClient(cfg *config.SwarmConfig) (*docker.Client, error) {
+	if strings.HasPrefix(cfg.Endpoint, "unix") {
+		return docker.NewClient(cfg.Endpoint)
+	} else if cfg.TLSVerify || tlsEnabled(cfg.TLSCert, cfg.TLSCACert, cfg.TLSKey) {
+		if cfg.TLSVerify {
+			if e, err := pathExists(cfg.TLSCACert); !e || err != nil {
+				return nil, errors.New("TLS verification was requested, but CA cert does not exist")
+			}
+		}
+		return docker.NewTLSClient(cfg.Endpoint, cfg.TLSCert, cfg.TLSKey, cfg.TLSCACert)
+	}
+	return docker.NewClient(cfg.Endpoint)
+}
+
 // Watch for changes using polling and make callbacks to the specified
 // handler when apps have been added, removed or health changes.
 // Currently docker doesn't support Swarm events (https://github.com/moby/moby/issues/23827)
@@ -87,6 +107,7 @@ func (s *swarmService) Watch(reload chan bool) {
 	log.Info("Starting Swarm Watch...")
 	s.reload = reload
 	ticker := time.NewTicker(s.watchInterval)
+
 	go func(ticker *time.Ticker, s *swarmService) {
 		for {
 			select {
@@ -100,7 +121,7 @@ func (s *swarmService) Watch(reload chan bool) {
 					s.services = services
 
 					// TODO: better comparison until #23827 is implemented
-					if len(previous) != len(services) {
+					if topologyChanged(previous, services) {
 						s.reload <- true
 					}
 				}
@@ -158,7 +179,7 @@ func (s *swarmService) updateNodeState() {
 	s.nodes.Unlock()
 }
 
-func (s *swarmService) getServices() ([]serviceData, error) {
+func (s *swarmService) getServices() (Services, error) {
 	services, err := s.client.ListServices(docker.ListServicesOptions{})
 	if err != nil {
 		return []serviceData{}, err
@@ -177,12 +198,14 @@ func (s *swarmService) getServices() ([]serviceData, error) {
 		networkMap[network.ID] = &n
 	}
 
-	serviceDataList := []serviceData{}
+	serviceDataList := Services{}
 
 	for _, service := range services {
 		sdata := parseService(service, networkMap)
 		serviceDataList = append(serviceDataList, sdata)
 	}
+
+	sort.Sort(serviceDataList)
 
 	return serviceDataList, err
 }
@@ -256,6 +279,59 @@ func (n *swarmNodes) nextNodeAddress() string {
 	}
 	nodeData := n.healthyNodes[n.nextNode]
 	return nodeData.Addr
+}
+
+func topologyChanged(a, b []serviceData) bool {
+	if a == nil && b == nil {
+		return false
+	}
+
+	if a == nil || b == nil {
+		return true
+	}
+
+	if len(a) != len(b) {
+		return true
+	}
+
+	for i := range a {
+		if a[i].Equal(b[i]) == false {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (a serviceData) Equal(b serviceData) bool {
+	if a.Name != b.Name {
+		return false
+	}
+
+	if a.Health != b.Health {
+		return false
+	}
+
+	if a.TargetPort != b.TargetPort {
+		return false
+	}
+
+	if a.Port != b.Port {
+		return false
+	}
+	return true
+}
+
+func (s Services) Len() int {
+	return len(s)
+}
+
+func (s Services) Less(i, j int) bool {
+	return s[i].Name < s[j].Name
+}
+
+func (s Services) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
 }
 
 func (s *swarmService) convertServiceToApp(serviceData []serviceData) map[string]*App {

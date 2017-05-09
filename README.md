@@ -41,19 +41,19 @@ Create a file called `nginx.template`.  Refer to the `nginx.template` found in t
 
 ### Create the Beethoven Configuration File
 
-Create a file that ends in `.json`.  In this example we'll call it `btconf.json`. Refer to the `btconf.json` found in the [examples/](https://github.com/ContainX/beethoven/tree/master/examples) directory in this repo.
+Create a file that ends in `.json`.  In this example we'll use Marathon as the scheduler and call the file `config-marathon.json`. Refer to the `config-marathon.json` found in the [examples/](https://github.com/ContainX/beethoven/tree/master/examples) directory in this repo.
   
 Add/Modify any options to suit your needs.  For a description and all possible configuration options refer to the docs found within the [config.go](https://github.com/ContainX/beethoven/blob/master/config/config.go) file.
  
 #### Create a Dockerfile
 
-Next we will create the `Dockerfile` to package up the `nginx.template` and `btconf.json` files.  If you used the filenames in this guide then simply copy the code below into your `Dockerfile`.
+Next we will create the `Dockerfile` to package up the `nginx.template` and `config-marathon.json` files.  If you used the filenames in this guide then simply copy the code below into your `Dockerfile`.
 
 ```
 FROM containx/beethoven
 
 ADD nginx.template /etc/nginx/nginx.template
-ADD btconf.json /etc/btconf.json
+ADD config-marathon.json /etc/config-marathon.json
 ```
 
 #### Build and Testing your Container
@@ -62,7 +62,7 @@ Build and Run your Container
 
 ```
 docker build -t myloadbalancer .
-docker run -p 80:80 -d myloadbalancer -c /etc/btconf.json
+docker run -p 80:80 -d myloadbalancer -c /etc/config-marathon.json
 ```
 
 Now open your browser and test paths you created at http://localhost
