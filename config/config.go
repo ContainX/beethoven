@@ -79,8 +79,13 @@ type SwarmConfig struct {
 	// Target connection string for Swarm
 	Endpoint string `json:"endpoint"`
 
-	// The name of the network Beethoven should proxy internal requests to
+	// Network is the name of the network Beethoven should proxy internal requests to.  This is only used
+	// if RouteToNode is set to false (the default)
 	Network string `json:"network"`
+
+	// RouteToNode will instruct beethoven to route requests to the public address of the Swarm node.  This
+	// can be used in scenarios where Beethoven is running outside of the Swarm cluster
+	RouteToNode bool
 
 	// Interval to watch for Swarm topology changes
 	WatchIntervalSecs int `json:"watch_interval_secs"`

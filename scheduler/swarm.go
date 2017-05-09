@@ -5,6 +5,7 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/moby/moby/api/types/swarm"
 	"net"
+	"sync"
 	"time"
 )
 
@@ -20,6 +21,7 @@ type swarmService struct {
 	services      []serviceData
 	shutdown      ShutdownChan
 	watchInterval time.Duration
+	nodes         *swarmNodes
 }
 
 type serviceData struct {
@@ -28,6 +30,8 @@ type serviceData struct {
 	Labels          map[string]string
 	NetworkSettings networkSettings
 	Health          string
+	Port            int
+	TargetPort      int
 }
 
 type networkSettings struct {
@@ -37,12 +41,21 @@ type networkSettings struct {
 }
 
 type networkData struct {
-	Name       string
-	Address    string
-	Port       int
-	TargetPort int
-	Protocol   string
-	ID         string
+	Name     string
+	Address  string
+	Protocol string
+	ID       string
+}
+
+type swarmNodes struct {
+	sync.RWMutex
+	nextNode     int
+	healthyNodes []nodeData
+}
+
+type nodeData struct {
+	Id   string
+	Addr string
 }
 
 func createSwarmScheduler(ss *schedulerService) Scheduler {
@@ -53,6 +66,10 @@ func createSwarmScheduler(ss *schedulerService) Scheduler {
 	}
 	scheduler.client = client
 	scheduler.shutdown = make(ShutdownChan, 2)
+	scheduler.nodes = &swarmNodes{
+		healthyNodes: []nodeData{},
+	}
+	scheduler.updateNodeState()
 
 	if ss.cfg.Swarm.WatchIntervalSecs > 0 {
 		scheduler.watchInterval = time.Duration(ss.cfg.Swarm.WatchIntervalSecs) * time.Second
@@ -67,7 +84,7 @@ func createSwarmScheduler(ss *schedulerService) Scheduler {
 // handler when apps have been added, removed or health changes.
 // Currently docker doesn't support Swarm events (https://github.com/moby/moby/issues/23827)
 func (s *swarmService) Watch(reload chan bool) {
-	log.Info("Starting swarm watch")
+	log.Info("Starting Swarm Watch...")
 	s.reload = reload
 	ticker := time.NewTicker(s.watchInterval)
 	go func(ticker *time.Ticker, s *swarmService) {
@@ -75,6 +92,7 @@ func (s *swarmService) Watch(reload chan bool) {
 			select {
 			case <-ticker.C:
 				services, err := s.getServices()
+				s.updateNodeState()
 				if err != nil {
 					log.Error("Error fetching services from Swarm: %s", err.Error())
 				} else {
@@ -111,6 +129,33 @@ func (s *swarmService) FetchApps() (map[string]*App, error) {
 
 func (s *swarmService) FetchBeethovenInstances() ([]*BeethovenInstance, error) {
 	return []*BeethovenInstance{}, nil
+}
+
+func (s *swarmService) updateNodeState() {
+	if s.cfg.Swarm.RouteToNode == false {
+		return
+	}
+
+	nodes, err := s.client.ListNodes(docker.ListNodesOptions{})
+	if err != nil {
+		log.Error("Error getting node list: %s", err.Error())
+		return
+	}
+
+	healthyNodes := []nodeData{}
+
+	for _, node := range nodes {
+		if node.Status.State == swarm.NodeStateReady && node.ManagerStatus == nil {
+			log.Info("Adding Node: %s, %s", node.ID, node.Status.Addr)
+			healthyNodes = append(healthyNodes, nodeData{Id: node.ID, Addr: node.Status.Addr})
+		} else {
+			log.Info("Skipping Node: %s, %s (online: %v, manager: %v)", node.ID, node.Status.Addr, node.Status.State == swarm.NodeStateReady, node.ManagerStatus != nil)
+		}
+	}
+
+	s.nodes.Lock()
+	s.nodes.healthyNodes = healthyNodes
+	s.nodes.Unlock()
 }
 
 func (s *swarmService) getServices() ([]serviceData, error) {
@@ -150,6 +195,11 @@ func parseService(service swarm.Service, networkMap map[string]*docker.Network) 
 		NetworkSettings: networkSettings{},
 	}
 
+	if service.Endpoint.Ports != nil && len(service.Endpoint.Ports) > 0 {
+		sdata.Port = int(service.Endpoint.Ports[0].PublishedPort)
+		sdata.TargetPort = int(service.Endpoint.Ports[0].TargetPort)
+	}
+
 	if service.Spec.EndpointSpec != nil {
 		if service.Spec.EndpointSpec.Mode == swarm.ResolutionModeVIP {
 			sdata.NetworkSettings.Networks = make(map[string]*networkData)
@@ -158,11 +208,9 @@ func parseService(service swarm.Service, networkMap map[string]*docker.Network) 
 				if networkService != nil {
 					ip, _, _ := net.ParseCIDR(vip.Addr)
 					network := &networkData{
-						Name:       networkService.Name,
-						ID:         vip.NetworkID,
-						Address:    ip.String(),
-						Port:       int(service.Endpoint.Ports[0].PublishedPort),
-						TargetPort: int(service.Endpoint.Ports[0].TargetPort),
+						Name:    networkService.Name,
+						ID:      vip.NetworkID,
+						Address: ip.String(),
 					}
 					sdata.NetworkSettings.Networks[network.Name] = network
 				} else {
@@ -175,10 +223,16 @@ func parseService(service swarm.Service, networkMap map[string]*docker.Network) 
 	return sdata
 }
 
-func (s *swarmService) getNetwork(service serviceData) *networkData {
+func (s *swarmService) getAddress(service serviceData) string {
+	if s.cfg.Swarm.RouteToNode {
+		s.nodes.RLock()
+		defer s.nodes.RUnlock()
+		return s.nodes.nextNodeAddress()
+	}
+
 	network := service.NetworkSettings.Networks[s.cfg.Swarm.Network]
 	if network != nil {
-		return network
+		return network.Address
 	} else {
 		log.Warning("Could not find network: %s for service '%s'.  Make sure service is in the Beethoven network'", s.cfg.Swarm.Network, service.Name)
 	}
@@ -186,28 +240,37 @@ func (s *swarmService) getNetwork(service serviceData) *networkData {
 	// Try Swarm ingress network
 	network = service.NetworkSettings.Networks["ingress"]
 	if network != nil {
-		return network
+		return network.Address
 	}
 
-	//for _, network := range service.NetworkSettings.Networks {
-	//		return network
-	//}
-	return nil
+	for _, network := range service.NetworkSettings.Networks {
+		return network.Address
+	}
+	return ""
+}
+
+func (n *swarmNodes) nextNodeAddress() string {
+	n.nextNode = n.nextNode + 1
+	if len(n.healthyNodes) <= n.nextNode {
+		n.nextNode = 0
+	}
+	nodeData := n.healthyNodes[n.nextNode]
+	return nodeData.Addr
 }
 
 func (s *swarmService) convertServiceToApp(serviceData []serviceData) map[string]*App {
 	apps := make(map[string]*App)
 	for _, service := range serviceData {
-		network := s.getNetwork(service)
-		if network == nil {
-			log.Error("Could not find network for: %S, skipping in template", service.Name)
+		address := s.getAddress(service)
+		if address == "" {
+			log.Error("Could not find network address for: %S, skipping in template", service.Name)
 			continue
 		}
 
 		swarmTask := Task{}
-		swarmTask.Host = network.Address
-		swarmTask.Ports = []int{network.TargetPort}
-		swarmTask.ServicePorts = []int{network.Port}
+		swarmTask.Host = address
+		swarmTask.Ports = []int{service.TargetPort}
+		swarmTask.ServicePorts = []int{service.Port}
 
 		app := App{}
 		app.AppId = service.ServiceName
