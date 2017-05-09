@@ -11,16 +11,16 @@
 * RESTful endpoints for current status
 * Flexible configuration options (local config, spring-cloud configuration remote configuration fetching and ENV variables)
 * Easy to get started add a `FROM containx/beethoven` to your `Dockerfile` add your template, config options and deploy!
-* Scheduler Support - Marathon/Mesos or Docker Swarm
+* Scheduler Support - Marathon/Mesos or Docker Swarm Mode
 
 
 ### Architecture Overview
 
 ![Architecture](images/beethoven-architecture.jpg?raw=true "Architecture")
 
-Beethoven runs in your cluster as a container managed by Marathon.  This allows for horizontal scaling across the Mesos agents.  Supervisor is leveraged to manage both Nginx and Beethoven since we are running two executables in a single container.
+Beethoven runs in your cluster as a container managed by Marathon or Docker Swarm Mode.  This allows for horizontal scaling across the cluster.  Supervisor is leveraged to manage both Nginx and Beethoven since we are running two executables in a single container.
 
-Beethoven attaches to the SSE stream in Marathon and listens for real-time changes to Apps and Tasks.  This includes new applications being added to the cluster or existing which has had a state change such as a health event.
+Beethoven attaches to the event stream and listens for real-time changes to Services and Tasks.  This includes new applications being added to the cluster or existing which has had a state change such as a health event.
 
 When an event occurs Beethoven takes the user provided `nginx.template` and parses it with the Handlebars processor.  Handlebars offers a lot of power behind the template including logic blocks, object iteration and other conditional behaviours. 
 
