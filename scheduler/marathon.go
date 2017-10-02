@@ -45,7 +45,7 @@ func (m *marathonService) Shutdown() {
 func (m *marathonService) FetchApps() (map[string]*App, error) {
 	apps, err := m.marathon.ListApplicationsWithFilters("embed=apps.tasks")
 	if err != nil {
-		log.Error("Error fetching apps: %s", err.Error())
+		log.Errorf("Error fetching apps: %s", err.Error())
 		return nil, err
 	}
 

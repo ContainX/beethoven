@@ -104,7 +104,7 @@ func newDockerClient(cfg *config.SwarmConfig) (*docker.Client, error) {
 // handler when apps have been added, removed or health changes.
 // Currently docker doesn't support Swarm events (https://github.com/moby/moby/issues/23827)
 func (s *swarmService) Watch(reload chan bool) {
-	log.Info("Starting Swarm Watch...")
+	log.Infof("Starting Swarm Watch...")
 	s.reload = reload
 	ticker := time.NewTicker(s.watchInterval)
 
@@ -115,7 +115,7 @@ func (s *swarmService) Watch(reload chan bool) {
 				services, err := s.getServices()
 				s.updateNodeState()
 				if err != nil {
-					log.Error("Error fetching services from Swarm: %s", err.Error())
+					log.Errorf("Error fetching services from Swarm: %s", err.Error())
 				} else {
 					previous := s.services
 					s.services = services
@@ -159,7 +159,7 @@ func (s *swarmService) updateNodeState() {
 
 	nodes, err := s.client.ListNodes(docker.ListNodesOptions{})
 	if err != nil {
-		log.Error("Error getting node list: %s", err.Error())
+		log.Errorf("Error getting node list: %s", err.Error())
 		return
 	}
 
@@ -167,10 +167,10 @@ func (s *swarmService) updateNodeState() {
 
 	for _, node := range nodes {
 		if node.Status.State == swarm.NodeStateReady && node.ManagerStatus == nil {
-			log.Info("Adding Node: %s, %s", node.ID, node.Status.Addr)
+			log.Infof("Adding Node: %s, %s", node.ID, node.Status.Addr)
 			healthyNodes = append(healthyNodes, nodeData{Id: node.ID, Addr: node.Status.Addr})
 		} else {
-			log.Info("Skipping Node: %s, %s (online: %v, manager: %v)", node.ID, node.Status.Addr, node.Status.State == swarm.NodeStateReady, node.ManagerStatus != nil)
+			log.Infof("Skipping Node: %s, %s (online: %v, manager: %v)", node.ID, node.Status.Addr, node.Status.State == swarm.NodeStateReady, node.ManagerStatus != nil)
 		}
 	}
 
@@ -187,7 +187,7 @@ func (s *swarmService) getServices() (Services, error) {
 
 	networks, err := s.client.FilteredListNetworks(docker.NetworkFilterOpts{"driver": {"overlay": true}})
 	if err != nil {
-		log.Debug("Failed to get networks from swarm, error: %s", err)
+		log.Debugf("Failed to get networks from swarm, error: %s", err)
 		return []serviceData{}, err
 	}
 
@@ -237,7 +237,7 @@ func parseService(service swarm.Service, networkMap map[string]*docker.Network) 
 					}
 					sdata.NetworkSettings.Networks[network.Name] = network
 				} else {
-					log.Debug("Network not found, id: %s", vip.NetworkID)
+					log.Debugf("Network not found, id: %s", vip.NetworkID)
 				}
 
 			}
@@ -257,7 +257,7 @@ func (s *swarmService) getAddress(service serviceData) string {
 	if network != nil {
 		return network.Address
 	} else {
-		log.Warning("Could not find network: %s for service '%s'.  Make sure service is in the Beethoven network'", s.cfg.Swarm.Network, service.Name)
+		log.Warningf("Could not find network: %s for service '%s'.  Make sure service is in the Beethoven network'", s.cfg.Swarm.Network, service.Name)
 	}
 
 	// Try Swarm ingress network
@@ -339,7 +339,7 @@ func (s *swarmService) convertServiceToApp(serviceData []serviceData) map[string
 	for _, service := range serviceData {
 		address := s.getAddress(service)
 		if address == "" {
-			log.Error("Could not find network address for: %S, skipping in template", service.Name)
+			log.Errorf("Could not find network address for: %S, skipping in template", service.Name)
 			continue
 		}
 

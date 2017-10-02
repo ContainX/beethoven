@@ -30,7 +30,7 @@ func NewScheduler(cfg *config.Config, tracker *tracker.Tracker) Scheduler {
 
 func (s *schedulerService) shouldTriggerReload(appId string, event interface{}) bool {
 	if appId == "" {
-		log.Warning("Event: Could not locate AppId: %s", event)
+		log.Warningf("Event: Could not locate AppId: %s", event)
 		return false
 	}
 
@@ -38,7 +38,7 @@ func (s *schedulerService) shouldTriggerReload(appId string, event interface{}) 
 
 	if s.cfg.IsFilterDefined() {
 		trigger = s.cfg.Filter().MatchString(appId)
-		log.Debug("Matching appId: %s to filter: %s -> %v, Event: %s", appId, s.cfg.FilterRegExStr, trigger, event)
+		log.Debugf("Matching appId: %s to filter: %s -> %v, Event: %s", appId, s.cfg.FilterRegExStr, trigger, event)
 	}
 	return trigger
 }
