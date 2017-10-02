@@ -5,7 +5,7 @@ import (
 	"github.com/ContainX/beethoven/config"
 	"github.com/docker/go-connections/nat"
 	docker "github.com/fsouza/go-dockerclient"
-	"github.com/moby/moby/api/types/swarm"
+	"github.com/docker/docker/api/types/swarm"
 	"net"
 	"sort"
 	"strings"

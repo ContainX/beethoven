@@ -26,7 +26,7 @@ func (m *marathonService) Watch(reload chan bool) {
 	m.reload = reload
 
 	// MVP - no health checks - should verify and use healthy masters
-	m.marathon = marathon.NewMarathonClient(m.cfg.Marathon.Endpoints[0], m.cfg.Marathon.Username, m.cfg.Marathon.Password)
+	m.marathon = marathon.NewMarathonClient(m.cfg.Marathon.Endpoints[0], m.cfg.Marathon.Username, m.cfg.Marathon.Password, "")
 
 	// suppress marathon debug
 	logger.SetLevel(logger.WARNING, "client")
